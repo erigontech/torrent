@@ -6,7 +6,7 @@ import "github.com/anacrolix/sync"
 // would only occur with a write lock at present. The race detector should catch instances of defers
 // without the write lock being held.
 type lockWithDeferreds struct {
-	internal      sync.RWMutex
+	internal      sync.Mutex
 	unlockActions []func()
 }
 

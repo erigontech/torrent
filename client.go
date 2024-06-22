@@ -1753,11 +1753,11 @@ func (cl *Client) rateLimitAccept(ip net.IP) bool {
 }
 
 func (cl *Client) rLock() {
-	cl._mu.RLock()
+	cl._mu.Lock()
 }
 
 func (cl *Client) rUnlock() {
-	cl._mu.RUnlock()
+	cl._mu.Unlock()
 }
 
 func (cl *Client) lock() {
