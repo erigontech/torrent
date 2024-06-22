@@ -24,11 +24,11 @@ func (me *lockWithDeferreds) Unlock() {
 }
 
 func (me *lockWithDeferreds) RLock() {
-	me.internal.RLock()
+	me.internal.Lock()
 }
 
 func (me *lockWithDeferreds) RUnlock() {
-	me.internal.RUnlock()
+	me.internal.Unlock()
 }
 
 func (me *lockWithDeferreds) Defer(action func()) {
