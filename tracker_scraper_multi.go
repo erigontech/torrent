@@ -242,8 +242,8 @@ RECALCULATE:
 		const recalculate = 1
 		const reselect = 2
 
-		actions := map[int]func() int{
-			0: func() int { return complete },
+		actions := map[int]func(selected int) int{
+			0: func(int) int { return complete },
 		}
 
 		for th, ts := range me.t {
@@ -256,9 +256,8 @@ RECALCULATE:
 			ts.t.mu.Unlock()
 
 			// If we want peers, reduce the interval to the minimum if it's appropriate.
-
-			// A channel that receives when we should reconsider our interval. Starts as nil since that
-			// never receives.
+			// A channel that receives when we should reconsider our interval.
+			// Starts as nil since that never receives.
 			var reconsider <-chan struct{}
 			select {
 			case <-wantPeers:
@@ -270,7 +269,7 @@ RECALCULATE:
 			}
 
 			if reconsider != nil {
-				actions[len(cases)] = func() int {
+				actions[len(cases)] = func(selected int) int {
 					ts.interval = ts.lastAnnounce.Interval
 					if ts.interval < time.Minute {
 						ts.interval = time.Minute
@@ -286,7 +285,7 @@ RECALCULATE:
 
 			}
 
-			actions[len(cases)] = func() int {
+			actions[len(cases)] = func(selected int) int {
 				me.mu.Lock()
 				delete(me.t, th)
 				me.mu.Unlock()
@@ -302,11 +301,18 @@ RECALCULATE:
 					Chan: reflect.ValueOf(ts.t.closed.Done()),
 				})
 
-			actions[len(cases)] = func() int {
+			actions[len(cases)] = func(selected int) int {
 				ar := me.announce(ctx, ts.t, tracker.None)
 				me.mu.Lock()
+				defer me.mu.Unlock()
 				ts.lastAnnounce = &ar
-				me.mu.Unlock()
+				if ts.interval < time.Minute {
+					ts.interval = time.Minute
+				}
+				cases[selected] = reflect.SelectCase{
+					Dir:  reflect.SelectRecv,
+					Chan: reflect.ValueOf(time.After(time.Until(ts.lastAnnounce.Completed.Add(ts.interval)))),
+				}
 				return reselect
 			}
 
@@ -322,7 +328,7 @@ RECALCULATE:
 			selected, _, _ := reflect.Select(cases)
 
 			if action, ok := actions[selected]; ok {
-				switch action() {
+				switch action(selected) {
 				case complete:
 					return
 				case recalculate:
