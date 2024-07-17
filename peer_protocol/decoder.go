@@ -170,7 +170,7 @@ func readMessageAfterType(msg *Message, r *expectReader, piecePool *sync.Pool) (
 		err = readHashRequest(r, msg)
 		numHashes := (r.UnreadLength() + 31) / 32
 		g.MakeSliceWithCap(&msg.Hashes, numHashes)
-		for range numHashes {
+		for i := int64(0); i < numHashes; i++ {
 			var oneHash [32]byte
 			_, err = io.ReadFull(r, oneHash[:])
 			if err != nil {
