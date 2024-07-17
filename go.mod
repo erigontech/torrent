@@ -2,8 +2,6 @@ module github.com/anacrolix/torrent
 
 go 1.21.4
 
-toolchain go1.22.5
-
 require (
 	github.com/RoaringBitmap/roaring v1.2.3
 	github.com/ajwerner/btree v0.0.0-20211221152037-f427b3e689c0
