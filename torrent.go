@@ -458,7 +458,7 @@ files:
 			errs = append(errs, fmt.Errorf("%v: expected hash %x got %x", f, f.piecesRoot.Value, root))
 			continue files
 		}
-		for i := range f.numPieces() {
+		for i := 0; i < f.numPieces(); i++ {
 			pi := f.BeginPieceIndex() + i
 			p := t.piece(pi)
 			p.setV2Hash(hashes[i])

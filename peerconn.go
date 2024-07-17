@@ -1277,7 +1277,7 @@ file:
 		curFileBeginPiece := nextFileBeginPiece
 		nextFileBeginPiece += fileNumPieces
 		haveAllHashes := true
-		for i := range fileNumPieces {
+		for i := 0; i < fileNumPieces; i++ {
 			torrentPieceIndex := curFileBeginPiece + i
 			if !pc.peerHasPiece(torrentPieceIndex) {
 				continue file
