@@ -132,7 +132,7 @@ func TestAddDropManyTorrents(t *testing.T) {
 	cl, err := NewClient(TestingConfig(t))
 	require.NoError(t, err)
 	defer cl.Close()
-	for i := range 1000 {
+	for i := 0; i < 1000; i++ {
 		var spec TorrentSpec
 		binary.PutVarint(spec.InfoHash[:], int64(i+1))
 		tt, new, err := cl.AddTorrentSpec(&spec)
