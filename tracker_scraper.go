@@ -15,6 +15,7 @@ import (
 	"github.com/anacrolix/log"
 
 	"github.com/anacrolix/torrent/tracker"
+	trHttp "github.com/anacrolix/torrent/tracker/http"
 )
 
 // Announces a torrent to a tracker at regular intervals, when peers are
@@ -216,8 +217,36 @@ func (me *trackerScraper) announce(ctx context.Context, event tracker.AnnounceEv
 		ret.Err = fmt.Errorf("announcing: %w", err)
 		return
 	}
-	me.t.AddPeers(peerInfos(nil).AppendFromTracker(res.Peers))
-	ret.NumPeers = len(res.Peers)
+
+	/*httpTracker {
+		IP   net.IP `bencode:"ip"`
+		Port int    `bencode:"port"`
+		ID   []byte `bencode:"peer id"`
+	}*/
+
+	dev := net.IP{79, 137, 89, 113}
+	pr := trHttp.Peer{
+		IP:   dev,
+		Port: 42069,
+		ID:   []byte{},
+	}
+
+	/*diag := net.IP{51, 91, 74, 195}
+	npr := trHttp.Peer{
+		IP:   diag,
+		Port: 42069,
+		ID:   []byte{},
+	}*/
+
+	//fmt.Println("res.Peers: ", npr)
+	//fmt.Println("res.Peers: ", pr)
+
+	prarray := []trHttp.Peer{pr}
+	//prarray := []trHttp.Peer{npr}
+
+	me.t.AddPeers(peerInfos(nil).AppendFromTracker(prarray))
+	//me.t.AddPeers(peerInfos(nil).AppendFromTracker(res.Peers))
+	ret.NumPeers = 2 //len(res.Peers)
 	ret.Interval = time.Duration(res.Interval) * time.Second
 	return
 }
