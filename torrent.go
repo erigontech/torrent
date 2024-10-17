@@ -3132,6 +3132,7 @@ func initiateConn(opts outgoingConnOpts, ignoreLimits bool, lock bool, lockCLien
 
 	addr := peer.Addr
 	addrStr := addr.String()
+
 	if !ignoreLimits {
 		if t.connectingToPeerAddr(addrStr, lock) {
 			return
