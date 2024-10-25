@@ -685,18 +685,30 @@ func dialFromSocket(ctx context.Context, s Dialer, addr string) net.Conn {
 	return c
 }
 
-func (cl *Client) noLongerHalfOpen(t *Torrent, addr string, attemptKey outgoingConnAttemptKey) {
-	path := t.getHalfOpenPath(addr, attemptKey, true)
-	if !path.Exists() {
-		panic("should exist")
-	}
-	path.Delete()
-	cl.numHalfOpen--
-	if cl.numHalfOpen < 0 {
-		panic("should not be possible")
-	}
+func (cl *Client) noLongerHalfOpen(t *Torrent, addr string, attemptKey outgoingConnAttemptKey, lock bool, lockTorrent bool) {
+	path := t.getHalfOpenPath(addr, attemptKey, lockTorrent)
+	func() {
+		if lock {
+			cl.lock()
+			defer cl.unlock()
+		}
+		if lockTorrent {
+			t.mu.Lock()
+			defer t.mu.Unlock()
+		}
+
+		if !path.Exists() {
+			panic("should exist")
+		}
+		path.Delete()
+
+		cl.numHalfOpen--
+		if cl.numHalfOpen < 0 {
+			panic("should not be possible")
+		}
+	}()
 	for _, t := range cl.torrentsAsSlice() {
-		t.openNewConns(true)
+		t.openNewConns(lockTorrent)
 	}
 }
 
@@ -892,7 +904,7 @@ func (cl *Client) outgoingConnection(
 	}
 	cl.lock()
 	// Don't release lock between here and addPeerConn, unless it's for failure.
-	cl.noLongerHalfOpen(opts.t, opts.peerInfo.Addr.String(), attemptKey)
+	cl.noLongerHalfOpen(opts.t, opts.peerInfo.Addr.String(), attemptKey, false, true)
 	if err != nil {
 		if cl.config.Debug {
 			cl.logger.Levelf(

@@ -3102,11 +3102,22 @@ func (t *Torrent) getHalfOpenPath(addrStr string, attemptKey outgoingConnAttempt
 	return nestedmaps.Next(nestedmaps.Next(nestedmaps.Begin(&t.halfOpen), addrStr), attemptKey)
 }
 
-func (t *Torrent) addHalfOpen(addrStr string, attemptKey *PeerInfo, lock bool) {
+func (t *Torrent) addHalfOpen(addrStr string, attemptKey *PeerInfo, lock bool, lockClient bool) {
 	path := t.getHalfOpenPath(addrStr, attemptKey, lock)
 	if path.Exists() {
 		panic("should be unique")
 	}
+
+	if lockClient {
+		t.cl.lock()
+		defer t.cl.unlock()
+	}
+
+	if lock {
+		t.mu.Lock()
+		defer t.mu.Unlock()
+	}
+
 	path.Set(attemptKey)
 	t.cl.numHalfOpen++
 }
@@ -3117,29 +3128,38 @@ func initiateConn(opts outgoingConnOpts, ignoreLimits bool, lock bool, lockCLien
 	t := opts.t
 	peer := opts.peerInfo
 
-	if lockCLient {
-		t.cl.rLock()
-		defer t.cl.rUnlock()
+	addrStr := func() string {
+		if lockCLient {
+			t.cl.rLock()
+			defer t.cl.rUnlock()
+		}
+
+		if peer.Id == t.cl.peerID {
+			return ""
+		}
+		if t.cl.badPeerAddr(peer.Addr) && !peer.Trusted {
+			return ""
+		}
+		addr := peer.Addr
+		addrStr := addr.String()
+		if !ignoreLimits {
+			if t.connectingToPeerAddr(addrStr, lock) {
+				return ""
+			}
+		}
+		if t.hasPeerConnForAddr(addr, lock) {
+			return ""
+		}
+
+		return addrStr
+	}()
+
+	if len(addrStr) == 0 {
+		return
 	}
 
-	if peer.Id == t.cl.peerID {
-		return
-	}
-	if t.cl.badPeerAddr(peer.Addr) && !peer.Trusted {
-		return
-	}
-	addr := peer.Addr
-	addrStr := addr.String()
-	if !ignoreLimits {
-		if t.connectingToPeerAddr(addrStr, lock) {
-			return
-		}
-	}
-	if t.hasPeerConnForAddr(addr, lock) {
-		return
-	}
 	attemptKey := &peer
-	t.addHalfOpen(addrStr, attemptKey, lock)
+	t.addHalfOpen(addrStr, attemptKey, lock, lockCLient)
 	go t.cl.outgoingConnection(
 		opts,
 		attemptKey,
