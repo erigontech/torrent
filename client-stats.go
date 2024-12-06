@@ -40,7 +40,7 @@ type ClientStats struct {
 
 func (cl *Client) statsLocked() (stats ClientStats) {
 	stats.ConnStats = cl.connStats.Copy()
-	stats.ActiveHalfOpenAttempts = cl.numHalfOpen
+	stats.ActiveHalfOpenAttempts = int(cl.numHalfOpen.Load())
 
 	stats.NumPeersUndialableWithoutHolepunch = len(cl.undialableWithoutHolepunch)
 	stats.NumPeersUndialableWithoutHolepunchDialedAfterHolepunchConnect = len(cl.undialableWithoutHolepunchDialedAfterHolepunchConnect)

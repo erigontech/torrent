@@ -37,6 +37,8 @@ import (
 	gbtree "github.com/google/btree"
 	"github.com/pion/datachannel"
 
+	"sync/atomic"
+
 	"github.com/anacrolix/torrent/bencode"
 	"github.com/anacrolix/torrent/internal/check"
 	"github.com/anacrolix/torrent/internal/limiter"
@@ -84,7 +86,7 @@ type Client struct {
 	pieceRequestOrder map[interface{}]*request_strategy.PieceRequestOrder
 
 	acceptLimiter map[ipStr]int
-	numHalfOpen   int
+	numHalfOpen   atomic.Int64
 
 	websocketTrackers websocketTrackers
 
@@ -691,8 +693,8 @@ func (cl *Client) noLongerHalfOpen(t *Torrent, addr string, attemptKey outgoingC
 		panic("should exist")
 	}
 	path.Delete()
-	cl.numHalfOpen--
-	if cl.numHalfOpen < 0 {
+	cl.numHalfOpen.Store(cl.numHalfOpen.Load() - 1)
+	if cl.numHalfOpen.Load() < 0 {
 		panic("should not be possible")
 	}
 	for _, t := range cl.torrentsAsSlice() {

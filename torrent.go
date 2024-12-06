@@ -1734,7 +1734,7 @@ func (t *Torrent) openNewConns(lock bool) (initiated int) {
 		if len(t.cl.dialers) == 0 {
 			return
 		}
-		if t.cl.numHalfOpen >= t.cl.config.TotalHalfOpenConns {
+ 		if int(t.cl.numHalfOpen.Load()) >= t.cl.config.TotalHalfOpenConns {
 			return
 		}
 		p := t.peers.PopMax()
@@ -3104,7 +3104,7 @@ func (t *Torrent) addHalfOpen(addrStr string, attemptKey *PeerInfo, lock bool) {
 		panic("should be unique")
 	}
 	path.Set(attemptKey)
-	t.cl.numHalfOpen++
+	t.cl.numHalfOpen.Store(t.cl.numHalfOpen.Load() + 1)
 }
 
 // Start the process of connecting to the given peer for the given torrent if appropriate. I'm not
