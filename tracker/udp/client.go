@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/anacrolix/dht/v2/krpc"
@@ -20,6 +21,11 @@ type Client struct {
 	mu           ctxlock.Lock
 	connId       ConnectionId
 	connIdIssued time.Time
+	// connIdMu protects connIdIssued. Must always be acquired after mu (i.e. mu → connIdMu
+	// ordering). The dedicated mutex is necessary because request() may reset connIdIssued
+	// without holding mu (the mu lock is released by writeRequest before request() selects on
+	// its response channel), creating a data race between concurrent request() callers.
+	connIdMu sync.Mutex
 
 	shouldReconnectOverride func() bool
 
@@ -86,7 +92,10 @@ func (cl *Client) Scrape(
 }
 
 func (cl *Client) shouldReconnectDefault() bool {
-	return cl.connIdIssued.IsZero() || time.Since(cl.connIdIssued) >= time.Minute
+	cl.connIdMu.Lock()
+	issued := cl.connIdIssued
+	cl.connIdMu.Unlock()
+	return issued.IsZero() || time.Since(issued) >= time.Minute
 }
 
 func (cl *Client) shouldReconnect() bool {
@@ -115,7 +124,9 @@ func (cl *Client) doConnectRoundTrip(ctx context.Context) (err error) {
 		return
 	}
 	cl.connId = connResp.ConnectionId
+	cl.connIdMu.Lock()
 	cl.connIdIssued = time.Now()
+	cl.connIdMu.Unlock()
 	//log.Printf("conn id set to %x", cl.connId)
 	return
 }
@@ -232,7 +243,9 @@ func (cl *Client) request(
 			}
 			// Force a reconnection. Probably any error is worth doing this for, but the one we're
 			// specifically interested in is ConnectionIdMissmatchNul.
+			cl.connIdMu.Lock()
 			cl.connIdIssued = time.Time{}
+			cl.connIdMu.Unlock()
 		} else {
 			err = fmt.Errorf("unexpected response action %v", dr.Header.Action)
 		}
